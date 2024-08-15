@@ -18,6 +18,7 @@ public partial class TerraBrush : TerraBrushTool {
     public const int HeightMapFactor = 1;
 
     private int _zonesSize = 256;
+    private ShaderMaterial _customShader;
     private Terrain _terrain;
     private TextureSetResource[] _texturesSet;
     private ImageTexture[] _splatmaps = new ImageTexture[]{};
@@ -71,6 +72,24 @@ public partial class TerraBrush : TerraBrushTool {
 
     [Export(PropertyHint.Layers3DRender)]
     public int VisualInstanceLayers { get;set; } = 1;
+
+    [Export] public ShaderMaterial CustomShader {
+        get {
+            return _customShader;
+        } set {
+            _customShader = value;
+
+            if (value != null && value.Shader == null) {
+                var defaultShader = ResourceLoader.Load<Shader>("res://addons/terrabrush/Resources/Shaders/heightmap_clipmap_shader.gdshader");
+                var defaultCode = defaultShader.Code;
+
+                var shader = new Shader {
+                    Code = defaultCode
+                };
+                value.Shader = shader;
+            }
+        }
+    }
 
     [ExportGroup("LOD")]
     [Export]
@@ -250,6 +269,7 @@ public partial class TerraBrush : TerraBrushTool {
 
         _terrain.TextureSets = TextureSets;
         _terrain.VisualInstanceLayers = VisualInstanceLayers;
+        _terrain.CustomShader = CustomShader;
         _terrain.CollisionLayers = CollisionLayers;
         _terrain.CollisionMask = CollisionMask;
         _terrain.ZonesSize = ZonesSize;
@@ -263,10 +283,10 @@ public partial class TerraBrush : TerraBrushTool {
         _terrain.LODLevels = LODLevels;
         _terrain.LODRowsPerLevel = LODRowsPerLevel;
         _terrain.LODInitialCellWidth = LODInitialCellWidth;
+        _terrain.CollisionOnly = CollisionOnly;
         _terrain.CreateCollisionInThread = CreateCollisionInThread;
 
         AddChild(_terrain);
-        _terrain.BuildTerrain(!Engine.IsEditorHint() && (CollisionOnly || DefaultSettings.CollisionOnly));
 
         await CreateObjects();
 
@@ -368,8 +388,8 @@ public partial class TerraBrush : TerraBrushTool {
 
             if (foliage.Definition != null) {
                 var newFoliage = prefab.Instantiate<Foliage>();
-                _foliagesNode.AddChild(newFoliage);
 
+                newFoliage.FoliageIndex = i;
                 newFoliage.ZonesSize = ZonesSize;
                 newFoliage.TerrainZones = TerrainZones;
                 newFoliage.TextureSets = TextureSets;
@@ -384,7 +404,7 @@ public partial class TerraBrush : TerraBrushTool {
                 newFoliage.WaterFactor = WaterDefinition?.WaterFactor ?? 0;
                 newFoliage.NoiseTexture = foliage.Definition.NoiseTexture != null ? await WaitForTextureReady(foliage.Definition.NoiseTexture) : _defaultNoise;
 
-                newFoliage.UpdateFoliage(i);
+                _foliagesNode.AddChild(newFoliage);
             }
         }
     }
@@ -585,8 +605,6 @@ public partial class TerraBrush : TerraBrushTool {
             _waterNode.NormalMap2 = await WaitForTextureReady(WaterDefinition.WaterNormalMap2);
 
             _waterNodeContainer.AddChild(_waterNode);
-
-            _waterNode.UpdateWater();
         }
     }
 
@@ -624,8 +642,6 @@ public partial class TerraBrush : TerraBrushTool {
         }
 
         _snowNodeContainer.AddChild(_snowNode);
-
-        _snowNode.UpdateSnow();
     }
 
     public void UpdateObjectsHeight(List<ZoneResource> zones) {

@@ -49,6 +49,8 @@ public partial class Water : Node3D {
     public override void _Ready() {
         base._Ready();
         this.RegisterNodePaths();
+
+        UpdateWater();
     }
 
     public override void _PhysicsProcess(double delta) {
@@ -106,7 +108,7 @@ public partial class Water : Node3D {
                 Shader = ResourceLoader.Load<Shader>("res://addons/terrabrush/Resources/Shaders/water_clipmap_shader.gdshader")
             };
         } else {
-            _clipmap.Shader = CustomShader;
+            _clipmap.Shader = Utils.CreateCustomShaderCopy(CustomShader);
         }
 
         _clipmap.CreateMesh();
